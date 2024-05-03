@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+
 import { omittedKeys } from './omittedKeys'
 import { capitalizeFirstLetters } from '../../../utils/capitalizeFirstLetters'
 import { fetchExercises } from './apiCalls'
 import type { Exercise } from './ExerciseType'
-
+import ExerciseModal from './ExerciseModal'
 import {
   Table,
   TableBody,
@@ -12,23 +14,31 @@ import {
   TableHeader,
   TableRow
 } from '../catalyst/table'
-import ExerciseModal from './ExerciseModal'
 
 function ExerciseTable() {
-  const [exercises, setExercises] = useState([])
   const [exercise, setExercise] = useState({} as Exercise)
   const [isOpen, setIsOpen] = useState(false)
 
-  useEffect(() => {
-    fetchExercises().then((data) => setExercises(data))
-  }, [])
+  const {
+    isPending,
+    error,
+    data: exercises,
+    isFetching
+  } = useQuery({
+    queryKey: ['exercises'],
+    queryFn: fetchExercises
+  })
+
+  if (error) return <p>Error: {error.message}</p>
+  if (isFetching)
+    return <p className='text-zinc-300 font-thin'>Refreshing...</p>
 
   return (
     <>
       <Table
         striped={true}
         bleed
-        className='[--gutter:theme(spacing.6)] sm:[--gutter:theme(spacing.8)]'
+        className='[--gutter:theme(spacing.6)] sm:[--gutter:theme(spacing.8)] px-10 pt-3'
       >
         <TableHead>
           <TableRow>
@@ -49,26 +59,30 @@ function ExerciseTable() {
           </TableRow>
         </TableHead>
         <TableBody>
-          {exercises.map((exercise: Exercise) => (
-            <TableRow
-              key={exercise.name}
-              onClick={() => [setIsOpen(true), setExercise(exercise)]}
-            >
-              {Object.entries(exercise).map(([key, value]) => {
-                if (!omittedKeys.includes(key)) {
-                  return (
-                    <TableCell
-                      className='text-zinc-300 font-thin'
-                      key={value.toString()}
-                    >
-                      {Array.isArray(value) ? value.join(', ') : String(value)}
-                    </TableCell>
-                  )
-                }
-                return null
-              })}
-            </TableRow>
-          ))}
+          {isPending
+            ? '...'
+            : exercises.map((exercise: Exercise) => (
+                <TableRow
+                  key={exercise.name}
+                  onClick={() => [setIsOpen(true), setExercise(exercise)]}
+                >
+                  {Object.entries(exercise).map(([key, value]) => {
+                    if (!omittedKeys.includes(key)) {
+                      return (
+                        <TableCell
+                          className='text-zinc-300 font-thin'
+                          key={value.toString()}
+                        >
+                          {Array.isArray(value)
+                            ? value.join(', ')
+                            : String(value)}
+                        </TableCell>
+                      )
+                    }
+                    return null
+                  })}
+                </TableRow>
+              ))}
         </TableBody>
       </Table>
 
